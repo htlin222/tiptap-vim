@@ -17,5 +17,9 @@
   },
   "peerDependencies": {
     "@tiptap/core": "^2"
+  },
+  "dependencies": {
+    "@prose-motions/core": "workspace:*",
+    "@tiptap/starter-kit": "^2"
   }
 }

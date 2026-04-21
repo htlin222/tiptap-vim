@@ -86,7 +86,10 @@ export class CMVimAdapter {
 
 	curOp: PendingOp | null = null
 
-	private handlers = new Map<string, Set<Handler>>()
+	// Shape required by the engine's static `on` / `off` / `signal` helpers —
+	// they read `emitter._handlers[type]` as an Array<Function> directly.
+	_handlers: Record<string, Handler[]> = {}
+
 	private lineIndex: LineIndex
 
 	constructor(view: EditorView) {
@@ -363,24 +366,27 @@ export class CMVimAdapter {
 	}
 
 	// ── events ─────────────────────────────────────────────────────────────
+	// Match the shape of the engine's static `on` / `off` / `signal` helpers
+	// so both instance calls and static CM.on/CM.off/CM.signal walk the same
+	// storage (`emitter._handlers[type]` as an Array<Function>).
 	on(type: string, fn: Handler): void {
-		let set = this.handlers.get(type)
-		if (!set) {
-			set = new Set()
-			this.handlers.set(type, set)
-		}
-		set.add(fn)
+		;(this._handlers[type] ||= []).push(fn)
 	}
 
 	off(type: string, fn: Handler): void {
-		this.handlers.get(type)?.delete(fn)
+		const arr = this._handlers[type]
+		if (!arr)
+			return
+		const idx = arr.indexOf(fn)
+		if (idx >= 0)
+			this._handlers[type] = arr.slice(0, idx).concat(arr.slice(idx + 1))
 	}
 
 	signal(type: string, ...args: unknown[]): void {
-		const set = this.handlers.get(type)
-		if (!set)
+		const arr = this._handlers[type]
+		if (!arr)
 			return
-		for (const fn of Array.from(set)) fn(...args)
+		for (const fn of arr.slice()) fn(...args)
 	}
 
 	// ── options ────────────────────────────────────────────────────────────
@@ -394,7 +400,7 @@ export class CMVimAdapter {
 
 	// ── lifecycle ──────────────────────────────────────────────────────────
 	destroy(): void {
-		this.handlers.clear()
+		this._handlers = {}
 	}
 
 	// ── bookmarks ──────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { VimMode } from '@prose-motions/core'
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import '@prose-motions/styles/vim.css'
 
 function mount(id: string, statusId: string, initial: string) {
 	const element = document.getElementById(id)!

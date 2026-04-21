@@ -20,6 +20,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@prose-motions/core": "workspace:*",
+        "@prose-motions/styles": "workspace:*",
         "@tiptap/core": "^2",
         "@tiptap/pm": "^2",
         "@tiptap/starter-kit": "^2",
@@ -41,7 +42,11 @@
     },
     "packages/core": {
       "name": "@prose-motions/core",
-      "version": "0.2.0",
+      "version": "0.4.0",
+      "dependencies": {
+        "@prose-motions/adapter": "workspace:*",
+        "@prose-motions/engine": "workspace:*",
+      },
       "peerDependencies": {
         "@tiptap/core": "^2",
         "@tiptap/pm": "^2",
@@ -54,9 +59,17 @@
         "@replit/codemirror-vim": "^6.2.0",
       },
     },
+    "packages/styles": {
+      "name": "@prose-motions/styles",
+      "version": "0.1.0",
+    },
     "packages/testing": {
       "name": "@prose-motions/testing",
       "version": "0.0.0",
+      "dependencies": {
+        "@prose-motions/core": "workspace:*",
+        "@tiptap/starter-kit": "^2",
+      },
       "peerDependencies": {
         "@tiptap/core": "^2",
       },
@@ -238,6 +251,8 @@
     "@prose-motions/engine": ["@prose-motions/engine@workspace:packages/engine"],
 
     "@prose-motions/example-tiptap-vanilla": ["@prose-motions/example-tiptap-vanilla@workspace:examples/tiptap-vanilla"],
+
+    "@prose-motions/styles": ["@prose-motions/styles@workspace:packages/styles"],
 
     "@prose-motions/testing": ["@prose-motions/testing@workspace:packages/testing"],
 

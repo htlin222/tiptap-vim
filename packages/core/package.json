@@ -1,6 +1,6 @@
 {
   "name": "@prose-motions/core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Drop-in Vim-style motions for Tiptap / ProseMirror editors",
   "author": "Stratum Labs <hq@stratumlabs.ai>",
   "license": "MIT",

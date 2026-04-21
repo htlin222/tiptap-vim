@@ -1,0 +1,58 @@
+/* @prose-motions/styles — v0.1.0 */
+
+/* ------------------------------------------------------------------
+   Caret shapes.
+
+   The VimMode extension adds one of these classes to the ProseMirror
+   editor root based on the engine's current mode:
+
+     .pm-vim-mode-insert
+     .pm-vim-mode-normal
+     .pm-vim-mode-visual
+
+   Consumers opt in by importing this stylesheet:
+
+     import '@prose-motions/styles/vim.css'
+   ------------------------------------------------------------------ */
+
+/* Default caret is PM's native thin bar — good for Insert. We only
+   touch the caret appearance in Normal / Visual modes. */
+
+.pm-vim-mode-normal {
+	caret-color: transparent;
+}
+
+/* Block caret — drawn via a ::before pseudo-element on the PM cursor
+   span. PM renders the cursor as a zero-width span; we overlay a block
+   that's one character wide. The exact width is a ch-unit so it tracks
+   the editor's font. */
+.pm-vim-mode-normal .ProseMirror-cursorWrapper::before,
+.pm-vim-mode-normal .ProseMirror-separator::before {
+	content: '';
+	position: absolute;
+	width: 1ch;
+	height: 1.2em;
+	background: currentColor;
+	opacity: 0.25;
+	pointer-events: none;
+	transform: translateX(0);
+}
+
+/* Fallback — some PM builds don't use ProseMirror-cursorWrapper. Draw
+   a block by outlining the character immediately to the right of the
+   caret via a data-attribute selector (future work in M4). */
+
+/* Linewise visual selection highlight — stub for M4; leaving the class
+   reserved so themes can target it from day one. */
+.pm-vim-mode-visual .pm-vim-linewise {
+	background-color: color-mix(in oklab, currentColor 10%, transparent);
+}
+
+/* ------------------------------------------------------------------
+   Layout: ensure j/k don't trigger layout thrash on first keydown.
+   PM's coordsAtPos needs the editor to have a stable line-height.
+   ------------------------------------------------------------------ */
+
+.ProseMirror {
+	line-height: 1.5;
+}

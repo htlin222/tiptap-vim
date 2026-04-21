@@ -141,12 +141,38 @@ export const VimModeExtension = Extension.create<object, { state: VimState, adap
 				Vim.enterVimMode(adapter as unknown as never)
 				// v0.1.7 booted in insert mode; match that.
 				Vim.handleKey(adapter as unknown as never, 'i', 'user')
+
+				// Keep a class on the PM root that mirrors the engine's mode
+				// so @prose-motions/styles (and user themes) can drive caret
+				// appearance without polling.
+				const MODE_CLASSES = ['pm-vim-mode-normal', 'pm-vim-mode-insert', 'pm-vim-mode-visual']
+				const applyModeClass = (): void => {
+					const vim = (adapter.state.vim ?? null) as {
+						insertMode?: boolean
+						visualMode?: boolean
+					} | null
+					const next = vim?.insertMode
+						? 'pm-vim-mode-insert'
+						: vim?.visualMode
+							? 'pm-vim-mode-visual'
+							: 'pm-vim-mode-normal'
+					const cl = view.dom.classList
+					for (const c of MODE_CLASSES) {
+						if (c === next)
+							cl.add(c)
+						else cl.remove(c)
+					}
+				}
+				applyModeClass()
+				adapter.on('vim-mode-change', applyModeClass)
+
 				return {
 					destroy() {
 						try {
 							Vim.leaveVimMode(adapter as unknown as never)
 						}
 						catch {}
+						for (const c of MODE_CLASSES) view.dom.classList.remove(c)
 						adapter.destroy()
 						adapterByView.delete(view)
 					},

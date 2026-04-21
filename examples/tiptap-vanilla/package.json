@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@prose-motions/core": "workspace:*",
+    "@prose-motions/styles": "workspace:*",
     "@tiptap/core": "^2",
     "@tiptap/pm": "^2",
     "@tiptap/starter-kit": "^2"
