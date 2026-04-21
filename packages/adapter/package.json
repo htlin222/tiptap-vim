@@ -25,7 +25,8 @@
     "@tiptap/pm": "^2"
   },
   "dependencies": {
-    "@prose-motions/engine": "workspace:*"
+    "@prose-motions/engine": "workspace:*",
+    "@replit/codemirror-vim": "^6.2.0"
   },
   "files": [
     "dist/**/*"

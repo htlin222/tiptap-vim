@@ -1,8 +1,31 @@
-// Placeholder for @prose-motions/engine.
+// Single chokepoint for the upstream vim engine.
 //
-// M2 will populate this module with a single re-export of
-// @replit/codemirror-vim's `Vim` API plus a `VimAPI` type describing the
-// subset of the surface we actually call from the adapter. Keeping the
-// upstream engine behind this chokepoint means a breaking change upstream
-// surfaces as a TypeScript error here, not in every consumer.
-export const ENGINE_VERSION = '0.0.0-m1-skeleton'
+// We deliberately re-export only the pieces of `@replit/codemirror-vim` we
+// actually call, under our own name, so a breaking change upstream surfaces
+// here as a TypeScript error instead of breaking every consumer.
+//
+// License: upstream is MIT — same as @prose-motions/*.
+import { Vim as UpstreamVim } from '@replit/codemirror-vim'
+
+export const Vim = UpstreamVim
+
+/**
+ * The subset of the upstream `Vim` object our adapter depends on. Listed here
+ * so a new overload or removed method upstream is caught at compile time.
+ */
+export interface VimAPI {
+	enterVimMode: (cm: unknown) => void
+	leaveVimMode: (cm: unknown) => void
+	handleKey: (cm: unknown, key: string, origin: string) => boolean | undefined
+	map: (lhs: string, rhs: string, ctx?: string) => void
+	unmap: (lhs: string, ctx?: string) => void
+	defineEx: (name: string, prefix: string | undefined, func: (cm: unknown, params: unknown) => void) => void
+	exitInsertMode: (cm: unknown, keepCursor?: boolean) => void
+	exitVisualMode: (cm: unknown, moveHead?: boolean) => void
+}
+
+// Static check: upstream Vim has to satisfy our narrowed contract.
+const _typecheck: VimAPI = UpstreamVim as unknown as VimAPI
+void _typecheck
+
+export const ENGINE_VERSION = '0.1.0-m2'

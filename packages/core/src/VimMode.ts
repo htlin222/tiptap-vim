@@ -1,84 +1,95 @@
-import type {
-	CommandProps,
-	Editor,
-	KeyboardShortcutCommand,
-} from "@tiptap/core";
-import type { EditorView } from "@tiptap/pm/view";
-import { Extension } from "@tiptap/core";
-import { keymap } from "@tiptap/pm/keymap";
-import { Plugin, TextSelection } from "@tiptap/pm/state";
+import type { CommandProps, Editor } from '@tiptap/core'
+import type { EditorView } from '@tiptap/pm/view'
+import { CMVimAdapter, vimKeymapPlugin } from '@prose-motions/adapter'
+import { Vim } from '@prose-motions/engine'
+import { Extension } from '@tiptap/core'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
 
-interface PendingOp {
-	key: string;
-	expires: number;
-}
-
+/**
+ * Public-facing state shape. Kept narrow for M2; `pendingOp` is retained as a
+ * always-null field so v0.1.7 consumers that read it keep type-checking —
+ * pending-op state has moved into the engine.
+ */
 export interface VimState {
-	mode: "normal" | "insert";
-	pendingOp: PendingOp | null;
+	mode: 'normal' | 'insert'
+	pendingOp: null
 }
 
-// Tiptap's `Extension.storage` is a single object shared across every Editor
-// that loads the same extension reference — so per-editor state cannot live
-// inside it. We key a WeakMap by the Editor instance. Public reads/writes go
-// through the helper below; `editor.storage.vimMode.state` is kept as a thin
-// getter installed per-editor in `onCreate`.
-const editorStates = new WeakMap<Editor, VimState>();
+const adapterByView = new WeakMap<EditorView, CMVimAdapter>()
+const adapterByEditor = new WeakMap<Editor, CMVimAdapter>()
 
-function makeState(): VimState {
-	return { mode: "insert", pendingOp: null };
+/**
+ * Read the mode the engine reports for a given adapter. Visual / visual-line /
+ * visual-block are collapsed to `'normal'` until M4 exposes visual support.
+ */
+function modeOf(adapter: CMVimAdapter | undefined): 'normal' | 'insert' {
+	const vim = (adapter?.state.vim ?? null) as { insertMode?: boolean } | null
+	return vim?.insertMode ? 'insert' : 'normal'
 }
 
-export function vimStateOf(editor: Editor): VimState {
-	let s = editorStates.get(editor);
-	if (!s) {
-		s = makeState();
-		editorStates.set(editor, s);
+function stateFor(adapter: CMVimAdapter | undefined): VimState {
+	return {
+		mode: modeOf(adapter),
+		pendingOp: null,
 	}
-	return s;
 }
 
-// Per-editor storage object — one is installed on each Editor in `onCreate`,
-// overriding the singleton placeholder returned by `addStorage`. This way
-// `editor.storage.vimMode.state` always reads the right editor's slot.
-function installPerEditorStorage(editor: Editor) {
-	const perEditor = {
+export function vimAdapterOf(editor: Editor): CMVimAdapter | undefined {
+	return adapterByEditor.get(editor)
+}
+
+/** Install a per-editor storage accessor that resolves from the adapter. */
+function installPerEditorStorage(editor: Editor): void {
+	const facade = {
 		get state(): VimState {
-			return vimStateOf(editor);
+			return stateFor(adapterByEditor.get(editor))
 		},
-		set state(next: VimState) {
-			const slot = vimStateOf(editor);
-			slot.mode = next.mode;
-			slot.pendingOp = next.pendingOp;
+		set state(_next: VimState) {
+			// Ignored in M2 — the engine owns authoritative state.
 		},
-	};
-	// Replace the shared storage entry on this specific Editor with the
-	// per-editor accessor. `editor.storage` is a plain object keyed by
-	// extension name — assigning here is scoped to this Editor only.
-	(editor.storage as Record<string, unknown>).vimMode = perEditor;
+		get adapter(): CMVimAdapter | undefined {
+			return adapterByEditor.get(editor)
+		},
+	}
+	;(editor.storage as Record<string, unknown>).vimMode = facade
 }
 
-declare module "@tiptap/core" {
+declare module '@tiptap/core' {
 	interface Commands<ReturnType> {
 		vimMode: {
 			/** switch to Vim normal mode */
-			enterNormalMode: () => ReturnType;
+			enterNormalMode: () => ReturnType
 			/** switch to Vim insert mode */
-			enterInsertMode: () => ReturnType;
-		};
+			enterInsertMode: () => ReturnType
+		}
 	}
 }
 
-export const VimModeExtension = Extension.create<object, { state: VimState }>({
-	name: "vimMode",
+const vimLifecyclePluginKey = new PluginKey('prose-motions/vim-lifecycle')
+
+export const VimModeExtension = Extension.create<object, { state: VimState, adapter: CMVimAdapter | undefined }>({
+	name: 'vimMode',
 
 	addStorage() {
-		// Placeholder — overwritten per-editor by `onCreate`.
-		return { state: makeState() };
+		// Placeholder — installPerEditorStorage replaces this with a
+		// per-editor accessor from addProseMirrorPlugins (which runs
+		// synchronously during Editor construction, unlike onCreate which
+		// fires from setTimeout(0)).
+		return { state: { mode: 'insert', pendingOp: null }, adapter: undefined }
 	},
 
 	onDestroy() {
-		editorStates.delete(this.editor);
+		const adapter = adapterByEditor.get(this.editor)
+		if (adapter) {
+			try {
+				Vim.leaveVimMode(adapter as unknown as never)
+			}
+			catch {
+				// engine can throw during teardown if the view is already gone
+			}
+			adapter.destroy()
+		}
+		adapterByEditor.delete(this.editor)
 	},
 
 	// ────────────────────────────────────────────────────────────────────────────
@@ -86,189 +97,68 @@ export const VimModeExtension = Extension.create<object, { state: VimState }>({
 	// ────────────────────────────────────────────────────────────────────────────
 	addCommands() {
 		return {
-			enterNormalMode:
-				() =>
-				({ editor, tr, dispatch }: CommandProps) => {
-					if (dispatch) {
-						vimStateOf(editor).mode = "normal";
-						const { $head } = tr.selection;
-						const newPos = Math.max(1, $head.pos - 1);
-						dispatch(tr.setSelection(TextSelection.create(tr.doc, newPos)));
-					}
-					return true;
-				},
-			enterInsertMode:
-				() =>
-				({ editor }: CommandProps) => {
-					vimStateOf(editor).mode = "insert";
-					return true;
-				},
-		};
-	},
-
-	// ────────────────────────────────────────────────────────────────────────────
-	// Keyboard shortcuts
-	// ────────────────────────────────────────────────────────────────────────────
-	addKeyboardShortcuts() {
-		// Always resolve the editor from shortcut props so the handler is
-		// correct regardless of which editor instance fires the keystroke.
-		type Props = Parameters<KeyboardShortcutCommand>[0];
-
-		const moveBy =
-			(delta: number): KeyboardShortcutCommand =>
-			(props: Props) => {
-				const { editor } = props;
-				const { state: s, view } = editor;
-				const { $head } = s.selection;
-				const newPos = Math.max(
-					0,
-					Math.min(s.doc.content.size, $head.pos + delta),
-				);
-				view.dispatch(s.tr.setSelection(TextSelection.create(s.doc, newPos)));
-				return true;
-			};
-
-		const moveLine =
-			(dir: number): KeyboardShortcutCommand =>
-			(props: Props) => {
-				const { editor } = props;
-				const { state: s, view } = editor;
-				const { $head } = s.selection;
-				const start = view.coordsAtPos($head.pos);
-				if (!start) return true;
-				const lineHeight =
-					Number.parseInt(getComputedStyle(view.dom).lineHeight) || 20;
-				const target = view.posAtCoords({
-					left: start.left,
-					top: start.top + dir * lineHeight,
-				});
-				if (target) {
-					view.dispatch(
-						s.tr.setSelection(TextSelection.create(s.doc, target.pos)),
-					);
+			enterNormalMode: () => ({ editor }: CommandProps) => {
+				const adapter = adapterByEditor.get(editor)
+				if (!adapter)
+					return false
+				if (modeOf(adapter) !== 'normal') {
+					Vim.exitInsertMode(adapter as unknown as never)
 				}
-				return true;
-			};
-
-		const moveToPrevWord = (): KeyboardShortcutCommand => (props: Props) => {
-			const { editor } = props;
-			const { state: s, view } = editor;
-			let pos = s.selection.$head.pos;
-			if (pos === 0) return true;
-
-			const charAt = (p: number): string =>
-				s.doc.textBetween(p, p + 1, "\0", "\0") || "";
-
-			while (pos > 0 && /\s/.test(charAt(pos - 1))) pos--;
-			while (pos > 0 && !/\s/.test(charAt(pos - 1))) pos--;
-
-			view.dispatch(s.tr.setSelection(TextSelection.create(s.doc, pos)));
-			return true;
-		};
-
-		const deleteCurrentLine = (editor: Editor): void => {
-			const { state: s, view } = editor;
-			const { $head } = s.selection;
-			const start = $head.start($head.depth);
-			const end = $head.end($head.depth);
-			view.dispatch(s.tr.delete(start, end).scrollIntoView());
-		};
-
-		const shortcuts: Record<string, KeyboardShortcutCommand> = {
-			Escape: (props) => {
-				props.editor.commands.enterNormalMode();
-				return true;
+				return true
 			},
-			i: (props) => {
-				if (vimStateOf(props.editor).mode === "normal") {
-					props.editor.commands.enterInsertMode();
-					return true;
+			enterInsertMode: () => ({ editor }: CommandProps) => {
+				const adapter = adapterByEditor.get(editor)
+				if (!adapter)
+					return false
+				if (modeOf(adapter) !== 'insert') {
+					Vim.handleKey(adapter as unknown as never, 'i', 'user')
 				}
-				return false;
+				return true
 			},
-			h: (props) =>
-				vimStateOf(props.editor).mode === "normal" ? moveBy(-1)(props) : false,
-			l: (props) =>
-				vimStateOf(props.editor).mode === "normal" ? moveBy(1)(props) : false,
-			j: (props) =>
-				vimStateOf(props.editor).mode === "normal" ? moveLine(1)(props) : false,
-			k: (props) =>
-				vimStateOf(props.editor).mode === "normal"
-					? moveLine(-1)(props)
-					: false,
-			b: (props) =>
-				vimStateOf(props.editor).mode === "normal"
-					? moveToPrevWord()(props)
-					: false,
-			d: (props) => {
-				const s = vimStateOf(props.editor);
-				if (s.mode !== "normal") return false;
-
-				const now = Date.now();
-				if (
-					s.pendingOp &&
-					s.pendingOp.key === "d" &&
-					s.pendingOp.expires > now
-				) {
-					s.pendingOp = null;
-					deleteCurrentLine(props.editor);
-					return true;
-				}
-				s.pendingOp = { key: "d", expires: now + 500 };
-				return true;
-			},
-		};
-
-		// Block every other printable char while in Normal mode.
-		const catchAllHandler: KeyboardShortcutCommand = (props) =>
-			vimStateOf(props.editor).mode === "normal";
-		const printableChars =
-			"abcdefgmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}\\|;:'\",.<>?/~`";
-		for (const char of printableChars) {
-			if (!shortcuts[char]) shortcuts[char] = catchAllHandler;
 		}
-
-		return shortcuts;
 	},
 
 	// ────────────────────────────────────────────────────────────────────────────
-	// Additional ProseMirror plugins
-	//   – block regular text input while in Normal mode
-	//   – allow paste only in Insert mode
+	// Plugins — engine lifecycle + keymap
 	// ────────────────────────────────────────────────────────────────────────────
 	addProseMirrorPlugins() {
-		// `addProseMirrorPlugins` is called synchronously during Editor
-		// construction with `this.editor` already bound to the new Editor —
-		// earlier than `onCreate` (which fires inside setTimeout). We use this
-		// to install per-editor storage eagerly, so `editor.storage.vimMode`
-		// already has a per-editor accessor by the time the constructor
-		// returns.
-		const editor = this.editor;
-		vimStateOf(editor);
-		installPerEditorStorage(editor);
+		const editor = this.editor
+		installPerEditorStorage(editor)
 
-		const viewToEditor = new WeakMap<EditorView, Editor>();
-		const resolveEditor = (view: EditorView): Editor => {
-			let ed = viewToEditor.get(view);
-			if (!ed) {
-				ed = editor;
-				viewToEditor.set(view, ed);
-			}
-			return ed;
-		};
+		const getAdapter = (): CMVimAdapter => {
+			const a = adapterByEditor.get(editor)
+			if (!a)
+				throw new Error('[prose-motions] adapter not yet initialized')
+			return a
+		}
 
-		return [
-			keymap({
-				"Mod-v": (_state, _dispatch, view) =>
-					vimStateOf(resolveEditor(view!)).mode === "insert",
-			}),
-			new Plugin({
-				props: {
-					handleTextInput(view) {
-						return vimStateOf(resolveEditor(view)).mode === "normal";
+		const lifecycle = new Plugin({
+			key: vimLifecyclePluginKey,
+			view(view) {
+				const adapter = new CMVimAdapter(view)
+				adapterByView.set(view, adapter)
+				adapterByEditor.set(editor, adapter)
+				Vim.enterVimMode(adapter as unknown as never)
+				// v0.1.7 booted in insert mode; match that.
+				Vim.handleKey(adapter as unknown as never, 'i', 'user')
+				return {
+					destroy() {
+						try {
+							Vim.leaveVimMode(adapter as unknown as never)
+						}
+						catch {}
+						adapter.destroy()
+						adapterByView.delete(view)
 					},
-				},
-			}),
-		];
+				}
+			},
+		})
+
+		const keymap = vimKeymapPlugin({
+			getAdapter,
+			getMode: () => modeOf(adapterByEditor.get(editor)),
+		})
+
+		return [lifecycle, keymap]
 	},
-});
+})

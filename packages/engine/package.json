@@ -18,10 +18,13 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build:types": "tsc -p tsconfig.build.json",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm",
+    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@replit/*' --external '@codemirror/*'",
     "build": "bun run clean && bun run build:types && bun run build:esm"
   },
   "files": [
     "dist/**/*"
-  ]
+  ],
+  "dependencies": {
+    "@replit/codemirror-vim": "^6.2.0"
+  }
 }

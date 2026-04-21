@@ -1,6 +1,6 @@
 {
   "name": "@prose-motions/core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Drop-in Vim-style motions for Tiptap / ProseMirror editors",
   "author": "Stratum Labs <hq@stratumlabs.ai>",
   "license": "MIT",
@@ -10,7 +10,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build:types": "tsc -p tsconfig.build.json",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*'",
+    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*' --external '@replit/*' --external '@codemirror/*'",
     "build": "bun run clean && bun run build:types && bun run build:esm",
     "prepublishOnly": "bun run build"
   },
@@ -25,6 +25,10 @@
   "peerDependencies": {
     "@tiptap/core": "^2",
     "@tiptap/pm": "^2"
+  },
+  "dependencies": {
+    "@prose-motions/adapter": "workspace:*",
+    "@prose-motions/engine": "workspace:*"
   },
   "repository": {
     "type": "git",
