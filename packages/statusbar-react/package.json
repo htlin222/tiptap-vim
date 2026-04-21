@@ -1,0 +1,38 @@
+{
+  "name": "@prose-motions/statusbar-react",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React wrapper around @prose-motions/statusbar-vanilla.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "module": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:esm": "bun build ./src/index.tsx --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*' --external 'react' --external 'react-dom'",
+    "build": "bun run clean && bun run build:types && bun run build:esm"
+  },
+  "peerDependencies": {
+    "@tiptap/core": "^2",
+    "react": "^18 || ^19"
+  },
+  "dependencies": {
+    "@prose-motions/statusbar-vanilla": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "react": "^18"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}

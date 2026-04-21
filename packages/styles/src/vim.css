@@ -68,3 +68,51 @@
 .ProseMirror {
 	line-height: 1.5;
 }
+
+/* ------------------------------------------------------------------
+   Search highlights — backed by marksPlugin decorations from
+   CMVimAdapter.addOverlay().
+   ------------------------------------------------------------------ */
+
+.pm-vim-search-match {
+	background-color: color-mix(in oklab, goldenrod 35%, transparent);
+}
+
+/* ------------------------------------------------------------------
+   `:` / `/` prompt dialog rendered by CMVimAdapter.openDialog.
+   ------------------------------------------------------------------ */
+
+.pm-vim-dialog {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	padding: 4px 8px;
+	font-family: ui-monospace, monospace;
+	font-size: 13px;
+	background: color-mix(in oklab, currentColor 8%, transparent);
+	border-top: 1px solid color-mix(in oklab, currentColor 20%, transparent);
+}
+
+.pm-vim-dialog input {
+	flex: 1;
+	border: 0;
+	background: transparent;
+	font: inherit;
+	color: inherit;
+	outline: none;
+}
+
+/* ------------------------------------------------------------------
+   Status bar rendered by @prose-motions/statusbar-vanilla.
+   ------------------------------------------------------------------ */
+
+.pm-vim-statusbar {
+	font-family: ui-monospace, monospace;
+	font-size: 12px;
+	padding: 2px 8px;
+	opacity: 0.7;
+}
+
+.pm-vim-statusbar__mode[data-mode='normal'] { color: color-mix(in oklab, steelblue 80%, currentColor); }
+.pm-vim-statusbar__mode[data-mode='insert'] { color: color-mix(in oklab, seagreen 80%, currentColor); }
+.pm-vim-statusbar__mode[data-mode='visual'] { color: color-mix(in oklab, darkorange 80%, currentColor); }

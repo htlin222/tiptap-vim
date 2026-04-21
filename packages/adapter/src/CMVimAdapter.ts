@@ -13,6 +13,11 @@ interface CMRange {
 	head: Pos
 }
 
+interface OverlayHandle {
+	query: RegExp
+	marks: MarkHandle[]
+}
+
 type Handler = (...args: unknown[]) => void
 
 interface PendingOp {
@@ -422,7 +427,131 @@ export class CMVimAdapter {
 
 	// ── lifecycle ──────────────────────────────────────────────────────────
 	destroy(): void {
+		this.closeDialog()
 		this._handlers = {}
+	}
+
+	// ── search overlays ────────────────────────────────────────────────────
+	private overlays: OverlayHandle[] = []
+
+	/**
+	 * Highlight every match of `query` across the document, backed by the
+	 * adapter's marksPlugin. Returns the overlay handle the engine uses to
+	 * remove the highlights later.
+	 */
+	addOverlay(spec: { query: RegExp } | OverlayHandle | null | undefined): OverlayHandle | undefined {
+		if (!spec || !(spec as { query: RegExp }).query)
+			return undefined
+		const query = (spec as { query: RegExp }).query
+		const marks: MarkHandle[] = []
+		for (let line = 0; line <= this.lastLine(); line++) {
+			const text = this.getLine(line)
+			query.lastIndex = 0
+			let m: RegExpExecArray | null
+			// eslint-disable-next-line no-cond-assign
+			while ((m = query.exec(text)) != null) {
+				if (m[0].length === 0) {
+					query.lastIndex++
+					continue
+				}
+				marks.push(this.markText(
+					{ line, ch: m.index },
+					{ line, ch: m.index + m[0].length },
+					{ className: 'pm-vim-search-match' },
+				))
+				if (!query.global)
+					break
+			}
+		}
+		const handle: OverlayHandle = { query, marks }
+		this.overlays.push(handle)
+		return handle
+	}
+
+	/**
+	 * Remove the given overlay's highlights. Accepts either the handle
+	 * returned by `addOverlay` or null/undefined (no-op).
+	 */
+	removeOverlay(handle?: OverlayHandle | null): void {
+		if (!handle) {
+			// Matches CodeMirror's removeOverlay(): called with no args means
+			// "remove every overlay".
+			for (const h of this.overlays.splice(0)) {
+				for (const m of h.marks) m.clear()
+			}
+			return
+		}
+		const idx = this.overlays.indexOf(handle)
+		if (idx < 0)
+			return
+		for (const m of handle.marks) m.clear()
+		this.overlays.splice(idx, 1)
+	}
+
+	// ── dialog (drives `:` and `/` prompts) ────────────────────────────────
+	private dialogCloser: (() => void) | null = null
+
+	/**
+	 * CodeMirror-style dialog. The engine builds a DOM fragment containing a
+	 * prompt label and `<input>`, hands it here, and expects back a close
+	 * function. We append the fragment to a dialog container positioned just
+	 * under the PM view so it looks docked to the editor. Enter calls
+	 * `callback(value)`; Escape / blur close without calling it.
+	 */
+	openDialog(
+		template: Element,
+		callback: ((value: string) => void) | undefined,
+		options: { closeOnEnter?: boolean, closeOnBlur?: boolean, bottom?: boolean, value?: string } = {},
+	): (newValue?: string) => void {
+		// Only one dialog open at a time — closing a prior one is cheap.
+		this.closeDialog()
+
+		const host = document.createElement('div')
+		host.className = 'pm-vim-dialog'
+		host.appendChild(template)
+
+		const parent = this.view.dom.parentElement ?? document.body
+		parent.appendChild(host)
+
+		const input = host.querySelector('input') as HTMLInputElement | null
+		if (input && typeof options.value === 'string')
+			input.value = options.value
+		input?.focus()
+
+		let closed = false
+		const close = (submitValue?: string): void => {
+			if (closed)
+				return
+			closed = true
+			host.remove()
+			this.dialogCloser = null
+			if (submitValue != null)
+				callback?.(submitValue)
+		}
+		this.dialogCloser = () => close()
+
+		input?.addEventListener('keydown', (event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault()
+				if (options.closeOnEnter !== false)
+					close(input.value)
+				else callback?.(input.value)
+			}
+			else if (event.key === 'Escape') {
+				event.preventDefault()
+				close()
+			}
+		})
+
+		if (options.closeOnBlur) {
+			input?.addEventListener('blur', () => close(), { once: true })
+		}
+
+		return (newVal?: string): void => close(newVal)
+	}
+
+	private closeDialog(): void {
+		this.dialogCloser?.()
 	}
 
 	// ── bookmarks ──────────────────────────────────────────────────────────
