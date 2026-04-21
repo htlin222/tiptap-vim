@@ -1,6 +1,7 @@
 {
   "name": "prose-motions",
   "private": true,
+  "type": "module",
   "packageManager": "bun@1.1.8",
   "workspaces": [
     "packages/*",

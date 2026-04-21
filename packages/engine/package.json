@@ -1,0 +1,27 @@
+{
+  "name": "@prose-motions/engine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vim semantics engine facade — will wrap @replit/codemirror-vim in M2.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "module": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm",
+    "build": "bun run clean && bun run build:types && bun run build:esm"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}
