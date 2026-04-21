@@ -1,17 +1,18 @@
 import type { CommandProps, Editor } from '@tiptap/core'
 import type { EditorView } from '@tiptap/pm/view'
-import { CMVimAdapter, vimKeymapPlugin } from '@prose-motions/adapter'
+import { CMVimAdapter, marksPlugin, vimKeymapPlugin } from '@prose-motions/adapter'
 import { Vim } from '@prose-motions/engine'
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 
 /**
- * Public-facing state shape. Kept narrow for M2; `pendingOp` is retained as a
+ * Public-facing state shape. M4 widens `mode` to include `'visual'` now that
+ * the adapter forwards visual selections. `pendingOp` is retained as a
  * always-null field so v0.1.7 consumers that read it keep type-checking —
  * pending-op state has moved into the engine.
  */
 export interface VimState {
-	mode: 'normal' | 'insert'
+	mode: 'normal' | 'insert' | 'visual'
 	pendingOp: null
 }
 
@@ -19,12 +20,21 @@ const adapterByView = new WeakMap<EditorView, CMVimAdapter>()
 const adapterByEditor = new WeakMap<Editor, CMVimAdapter>()
 
 /**
- * Read the mode the engine reports for a given adapter. Visual / visual-line /
- * visual-block are collapsed to `'normal'` until M4 exposes visual support.
+ * Read the mode the engine reports for a given adapter. Visual-line and
+ * visual-block sub-modes are folded into `'visual'` at this layer; consumers
+ * that need to distinguish them can reach into
+ * `editor.storage.vimMode.adapter?.state.vim`.
  */
-function modeOf(adapter: CMVimAdapter | undefined): 'normal' | 'insert' {
-	const vim = (adapter?.state.vim ?? null) as { insertMode?: boolean } | null
-	return vim?.insertMode ? 'insert' : 'normal'
+function modeOf(adapter: CMVimAdapter | undefined): 'normal' | 'insert' | 'visual' {
+	const vim = (adapter?.state.vim ?? null) as {
+		insertMode?: boolean
+		visualMode?: boolean
+	} | null
+	if (vim?.insertMode)
+		return 'insert'
+	if (vim?.visualMode)
+		return 'visual'
+	return 'normal'
 }
 
 function stateFor(adapter: CMVimAdapter | undefined): VimState {
@@ -185,6 +195,6 @@ export const VimModeExtension = Extension.create<object, { state: VimState, adap
 			getMode: () => modeOf(adapterByEditor.get(editor)),
 		})
 
-		return [lifecycle, keymap]
+		return [lifecycle, keymap, marksPlugin()]
 	},
 })

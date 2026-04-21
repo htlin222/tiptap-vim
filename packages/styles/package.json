@@ -1,6 +1,6 @@
 {
   "name": "@prose-motions/styles",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "CSS for prose-motions — caret shapes and visual-mode styling.",
   "license": "MIT",

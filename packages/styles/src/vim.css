@@ -42,8 +42,20 @@
    a block by outlining the character immediately to the right of the
    caret via a data-attribute selector (future work in M4). */
 
-/* Linewise visual selection highlight — stub for M4; leaving the class
-   reserved so themes can target it from day one. */
+/* Visual-mode selection. PM renders the native browser selection via
+   ::selection; Normal mode hides its caret already, so we make visual's
+   selection unmistakable by layering a softer tint on top. */
+.pm-vim-mode-visual ::selection {
+	background-color: color-mix(in oklab, royalblue 40%, transparent);
+}
+
+.pm-vim-mode-visual::selection,
+.pm-vim-mode-visual *::selection {
+	background-color: color-mix(in oklab, royalblue 40%, transparent);
+}
+
+/* Linewise visual selection highlight — decoration-backed in later
+   milestones; themes can already target this class. */
 .pm-vim-mode-visual .pm-vim-linewise {
 	background-color: color-mix(in oklab, currentColor 10%, transparent);
 }

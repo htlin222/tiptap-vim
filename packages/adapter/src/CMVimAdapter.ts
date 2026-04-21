@@ -1,9 +1,11 @@
 import type { Node as PMNode } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
+import type { MarkHandle, MarkSpec } from './marksPlugin'
 import type { Pos } from './Pos'
 import { TextSelection } from '@tiptap/pm/state'
 import { LineIndex } from './LineIndex'
+import { addMark } from './marksPlugin'
 import { pos as mkPos, posEq } from './Pos'
 
 interface CMRange {
@@ -282,36 +284,56 @@ export class CMVimAdapter {
 		bottom: number
 	} {
 		const pmPos = this.lineIndex.toPM(p)
-		const c = this.view.coordsAtPos(pmPos)
-		return { left: c.left, top: c.top, bottom: c.bottom }
+		try {
+			const c = this.view.coordsAtPos(pmPos)
+			return { left: c.left, top: c.top, bottom: c.bottom }
+		}
+		catch {
+			// jsdom / headless environments may not support coords. Return a
+			// stable fake so the engine's math doesn't NaN.
+			return { left: 0, top: 0, bottom: 0 }
+		}
 	}
 
 	coordsChar(
 		coords: { left: number, top: number },
 		_mode: 'div' | 'local' = 'local',
 	): Pos {
-		const hit = this.view.posAtCoords({ left: coords.left, top: coords.top })
-		if (!hit)
+		try {
+			const hit = this.view.posAtCoords({ left: coords.left, top: coords.top })
+			if (!hit)
+				return this.getCursor()
+			return this.lineIndex.fromPM(hit.pos)
+		}
+		catch {
 			return this.getCursor()
-		return this.lineIndex.fromPM(hit.pos)
+		}
 	}
 
+	/**
+	 * Move vertically by `amount` lines. In an editor with soft-wrap this
+	 * would consult pixel coords; our PM-backed adapter models one vim line
+	 * per textblock, so logical line stepping is correct and, critically,
+	 * resilient to environments without layout (jsdom, initial mount).
+	 */
 	findPosV(
 		start: Pos,
 		amount: number,
 		_unit: 'page' | 'line',
 		goalColumn?: number,
 	): Pos & { hitSide?: boolean } {
-		const lh = this.defaultTextHeight()
-		const anchor = this.charCoords(start)
-		const left = goalColumn ?? anchor.left
-		const targetTop = anchor.top + amount * lh
-		const hit = this.view.posAtCoords({ left, top: targetTop })
-		if (!hit) {
-			const out = amount < 0 ? mkPos(0, 0) : mkPos(this.lastLine(), this.getLine(this.lastLine()).length)
-			return { ...out, hitSide: true }
+		const targetLine = start.line + amount
+		if (targetLine < 0) {
+			return { ...mkPos(0, 0), hitSide: true }
 		}
-		return this.lineIndex.fromPM(hit.pos)
+		if (targetLine > this.lastLine()) {
+			const last = this.lastLine()
+			return { ...mkPos(last, this.getLine(last).length), hitSide: true }
+		}
+		const desiredCol = goalColumn != null ? Math.floor(goalColumn) : start.ch
+		const line = this.getLine(targetLine)
+		const ch = Math.min(desiredCol, line.length)
+		return mkPos(targetLine, ch)
 	}
 
 	scrollIntoView(_pos?: Pos, _margin?: number): void {
@@ -407,6 +429,18 @@ export class CMVimAdapter {
 	setBookmark(cursor: Pos, options?: { insertLeft?: boolean }): CMMarker {
 		const offset = this.lineIndex.toPM(cursor)
 		return new CMMarker(this, offset, options?.insertLeft ? -1 : 1)
+	}
+
+	/**
+	 * CodeMirror-style markText. Backed by the adapter's PM decoration plugin —
+	 * decorations survive subsequent edits via `tr.mapping`. The returned
+	 * handle exposes `clear()` / `find()` that both rebase through the plugin
+	 * state, so callers don't need to know about PM positions.
+	 */
+	markText(from: Pos, to: Pos, spec: MarkSpec = {}): MarkHandle {
+		const a = this.lineIndex.toPM(from)
+		const b = this.lineIndex.toPM(to)
+		return addMark(this.view, Math.min(a, b), Math.max(a, b), spec)
 	}
 
 	// ── stubs for niche features (filled in from M3 on) ────────────────────

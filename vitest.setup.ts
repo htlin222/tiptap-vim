@@ -57,4 +57,19 @@ if (!Range.prototype.getBoundingClientRect) {
 	Range.prototype.getBoundingClientRect = () => emptyRect as unknown as DOMRect
 }
 
+// jsdom also leaves document.elementFromPoint / document.caretRangeFromPoint
+// unimplemented. PM's posAtCoords uses them, and the vim engine calls that for
+// findPosV. Return null so the adapter's fallback path runs.
+type DocPointFn = (x: number, y: number) => Element | null
+const docProto = Object.getPrototypeOf(document) as {
+	elementFromPoint?: DocPointFn
+	caretRangeFromPoint?: (x: number, y: number) => Range | null
+}
+if (typeof docProto.elementFromPoint !== 'function') {
+	docProto.elementFromPoint = () => null
+}
+if (typeof docProto.caretRangeFromPoint !== 'function') {
+	docProto.caretRangeFromPoint = () => null
+}
+
 // Add any custom matchers or test utilities here if needed
