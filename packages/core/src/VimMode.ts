@@ -353,6 +353,9 @@ export const VimModeExtension = Extension.create<VimModeOptions, { state: VimSta
 			getMode: () => modeOf(adapterByEditor.get(editor)),
 		})
 
+		// `getMode` is view-scoped in the plugin API but, in the Tiptap
+		// adapter, one editor ↔ one view, so we can safely ignore the arg.
+
 		return [lifecycle, keymap, marksPlugin()]
 	},
 })

@@ -17,6 +17,21 @@
         "vitest": "^3.1.4",
       },
     },
+    "examples/pm-bare": {
+      "name": "@prose-motions/example-pm-bare",
+      "version": "0.0.0",
+      "dependencies": {
+        "@prose-motions/pm": "workspace:*",
+        "@prose-motions/styles": "workspace:*",
+        "prosemirror-model": "^1.19.0",
+        "prosemirror-schema-basic": "^1.2.0",
+        "prosemirror-state": "^1.4.0",
+        "prosemirror-view": "^1.30.0",
+      },
+      "devDependencies": {
+        "vite": "^5.4.0",
+      },
+    },
     "examples/tiptap-vanilla": {
       "name": "@prose-motions/example-tiptap-vanilla",
       "version": "0.0.0",
@@ -44,7 +59,7 @@
     },
     "packages/core": {
       "name": "@prose-motions/core",
-      "version": "0.6.0",
+      "version": "0.9.0",
       "dependencies": {
         "@prose-motions/adapter": "workspace:*",
         "@prose-motions/engine": "workspace:*",
@@ -62,6 +77,19 @@
       "version": "0.0.0",
       "dependencies": {
         "@replit/codemirror-vim": "^6.2.0",
+      },
+    },
+    "packages/pm": {
+      "name": "@prose-motions/pm",
+      "version": "0.1.0",
+      "dependencies": {
+        "@prose-motions/adapter": "workspace:*",
+        "@prose-motions/engine": "workspace:*",
+      },
+      "peerDependencies": {
+        "prosemirror-model": "^1",
+        "prosemirror-state": "^1",
+        "prosemirror-view": "^1",
       },
     },
     "packages/statusbar-react": {
@@ -280,7 +308,11 @@
 
     "@prose-motions/engine": ["@prose-motions/engine@workspace:packages/engine"],
 
+    "@prose-motions/example-pm-bare": ["@prose-motions/example-pm-bare@workspace:examples/pm-bare"],
+
     "@prose-motions/example-tiptap-vanilla": ["@prose-motions/example-tiptap-vanilla@workspace:examples/tiptap-vanilla"],
+
+    "@prose-motions/pm": ["@prose-motions/pm@workspace:packages/pm"],
 
     "@prose-motions/statusbar-react": ["@prose-motions/statusbar-react@workspace:packages/statusbar-react"],
 

@@ -1,3 +1,4 @@
+import type { EditorView } from '@tiptap/pm/view'
 import type { CMVimAdapter } from './CMVimAdapter'
 import { Vim } from '@prose-motions/engine'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
@@ -6,10 +7,12 @@ export interface VimKeymapOptions {
 	/**
 	 * Resolves the adapter bound to the current EditorView. Called on every
 	 * keydown so lazy/post-init setup paths (e.g. plugin view() hooks) work.
+	 * The PM view is passed so multi-editor-per-plugin setups can dispatch
+	 * correctly.
 	 */
-	getAdapter: () => CMVimAdapter
-	/** Returns the current vim mode. The plugin only forwards keys when mode !== 'insert'. */
-	getMode: () => string
+	getAdapter: (view: EditorView) => CMVimAdapter
+	/** Returns the current vim mode for the given view. */
+	getMode: (view: EditorView) => string
 }
 
 export const vimKeymapPluginKey = new PluginKey('prose-motions/vim-keymap')
@@ -55,25 +58,25 @@ export function vimKeymapPlugin({ getAdapter, getMode }: VimKeymapOptions): Plug
 	return new Plugin({
 		key: vimKeymapPluginKey,
 		props: {
-			handleKeyDown(_view, event) {
+			handleKeyDown(view, event) {
 				if (event.isComposing || event.keyCode === 229)
 					return false
-				if (getMode() === 'insert' && event.key !== 'Escape')
+				if (getMode(view) === 'insert' && event.key !== 'Escape')
 					return false
 
 				const key = toVimKey(event)
 				if (!key)
 					return false
 
-				const handled = Vim.handleKey(getAdapter() as unknown as never, key, 'user')
+				const handled = Vim.handleKey(getAdapter(view) as unknown as never, key, 'user')
 				if (handled) {
 					event.preventDefault()
 					return true
 				}
 				return false
 			},
-			handleTextInput() {
-				return getMode() !== 'insert'
+			handleTextInput(view) {
+				return getMode(view) !== 'insert'
 			},
 		},
 	})

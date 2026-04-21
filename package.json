@@ -11,7 +11,7 @@
     "clean": "rm -rf packages/*/dist",
     "build": "bun run --cwd packages/engine build && bun run --cwd packages/adapter build && bun run --cwd packages/core build",
     "dev": "bun run --hot packages/core dev",
-    "pretest": "bun run --cwd packages/engine build && bun run --cwd packages/adapter build && bun run --cwd packages/core build",
+    "pretest": "bun run --cwd packages/engine build && bun run --cwd packages/adapter build && bun run --cwd packages/core build && bun run --cwd packages/pm build",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:list": "vitest run --reporter verbose",

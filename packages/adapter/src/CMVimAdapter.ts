@@ -554,6 +554,18 @@ export class CMVimAdapter {
 		this.dialogCloser?.()
 	}
 
+	/**
+	 * CodeMirror's primitive horizontal movement. The engine calls it for
+	 * `;`/`,` (repeat find) and a few internal fixups. In our PM model
+	 * horizontal = character-level inside the current vim line.
+	 */
+	moveH(increment: number, _unit: string = 'char'): void {
+		const current = this.getCursor()
+		const line = this.getLine(current.line)
+		const next = Math.max(0, Math.min(line.length, current.ch + increment))
+		this.setCursor({ line: current.line, ch: next })
+	}
+
 	// ── bookmarks ──────────────────────────────────────────────────────────
 	setBookmark(cursor: Pos, options?: { insertLeft?: boolean }): CMMarker {
 		const offset = this.lineIndex.toPM(cursor)

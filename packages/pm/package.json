@@ -1,0 +1,36 @@
+{
+  "name": "@prose-motions/pm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vanilla ProseMirror plugins that wire prose-motions without Tiptap.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "module": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*' --external '@replit/*' --external '@codemirror/*' --external 'prosemirror-*'",
+    "build": "bun run clean && bun run build:types && bun run build:esm"
+  },
+  "peerDependencies": {
+    "prosemirror-state": "^1",
+    "prosemirror-view": "^1",
+    "prosemirror-model": "^1"
+  },
+  "dependencies": {
+    "@prose-motions/adapter": "workspace:*",
+    "@prose-motions/engine": "workspace:*"
+  },
+  "files": [
+    "dist/**/*"
+  ]
+}
