@@ -15,18 +15,43 @@
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:list": "vitest run --reporter verbose",
-    "lint": "eslint \"**/*.{ts,tsx}\""
+    "lint": "eslint \"**/*.{ts,tsx}\"",
+    "presize": "bun run build",
+    "size": "size-limit"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.13.2",
+    "@size-limit/preset-small-lib": "^11",
     "@tiptap/starter-kit": "^2.2.1",
     "@vitest/coverage-v8": "3.1.4",
     "@vitest/ui": "^3.1.4",
     "eslint": "^9.0.0",
     "jsdom": "^24.0.0",
     "prettier": "^3.5.3",
+    "size-limit": "^11",
     "typescript": "^5.4.5",
     "vitest": "^3.1.4"
   },
+  "size-limit": [
+    {
+      "name": "core + adapter + engine (combined, consumer bundle)",
+      "path": [
+        "packages/engine/dist/src/index.js",
+        "packages/adapter/dist/src/index.js",
+        "packages/core/dist/src/index.js"
+      ],
+      "limit": "120 KB",
+      "ignore": [
+        "@tiptap/core",
+        "@tiptap/pm"
+      ]
+    },
+    {
+      "name": "statusbar-vanilla",
+      "path": "packages/statusbar-vanilla/dist/src/index.js",
+      "limit": "5 KB",
+      "ignore": ["@tiptap/core", "@prose-motions/core"]
+    }
+  ],
   "version": "0.1.2"
 }

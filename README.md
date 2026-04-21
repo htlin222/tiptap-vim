@@ -1,118 +1,154 @@
 <div align="center">
   <h1>@prose-motions/core</h1>
-  <p>Drop-in Vim-style motions for Tiptap / ProseMirror editors</p>
+  <p>Drop-in Vim mode for Tiptap / ProseMirror editors</p>
 
   [![npm version](https://img.shields.io/npm/v/@prose-motions/core)](https://www.npmjs.com/package/@prose-motions/core)
-  ![package size](https://img.shields.io/badge/size-4.52%20kB-brightgreen)
   [![npm](https://img.shields.io/npm/l/@prose-motions/core)](https://www.npmjs.com/package/@prose-motions/core)
 </div>
 
-`@prose-motions/core` is a lightweight extension that brings Vim's **Normal / Insert** modes and an ever-growing collection of native keybindings to any [Tiptap (v2)](https://tiptap.dev) or [ProseMirror editor](https://prosemirror.net).
+`@prose-motions/core` brings a **real vim engine** to any [Tiptap (v2)](https://tiptap.dev) or [ProseMirror](https://prosemirror.net) editor. Rather than hand-rolling motions, it routes keystrokes through `@replit/codemirror-vim` via a ProseMirror-backed adapter — the same pattern `monaco-vim` uses for Monaco. That gets you counts, operators, text-objects, registers, search, ex-commands, and `.`-repeat for free, with per-editor isolation.
 
-## Features
+## Packages
 
- - `Esc` / `i` to toggle modes
- - Cursor motions: `h` `j` `k` `l`
- - Word-back with `b`
- - Delete current line with `dd`
- - Blocks text input in Normal mode to match Vim behaviour
-
-Designed to be drop-in: no external CSS, no runtime deps beyond Tiptap itself.
+| Package | Purpose |
+| ------- | ------- |
+| `@prose-motions/core` | Tiptap extension — the thing you install |
+| `@prose-motions/adapter` | ProseMirror-backed CodeMirror-shape adapter (`CMVimAdapter`, `LineIndex`, `marksPlugin`, `vimKeymapPlugin`) |
+| `@prose-motions/engine` | Single chokepoint re-exporting `@replit/codemirror-vim`'s `Vim` API |
+| `@prose-motions/styles` | Opt-in CSS for block caret, visual selection, dialog, status bar |
+| `@prose-motions/statusbar-vanilla` | Framework-free mode label |
+| `@prose-motions/statusbar-react` | React wrapper around the vanilla bar |
 
 ## Installation
 
 ```bash
-bun add @prose-motions/core  # or npm/yarn/pnpm
+bun add @prose-motions/core
+# optional:
+bun add @prose-motions/styles         # caret / selection CSS
+bun add @prose-motions/statusbar-react # React status bar
 ```
 
-## Usage (Tiptap React example)
+## Usage (Tiptap React)
 
 ```tsx
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { VimMode } from '@prose-motions/core'
+import '@prose-motions/styles/vim.css'
 
-function MyEditor () {
+function MyEditor() {
   const editor = useEditor({
-    extensions: [StarterKit, VimMode],
-    content: '<p>hello world</p>'
+    extensions: [
+      StarterKit,
+      VimMode.configure({
+        defaultMode: 'normal',
+        keymaps: [{ lhs: 'jk', rhs: '<Esc>', mode: 'insert' }],
+        ex: { handlers: { w: () => save() } },
+        onModeChange: (mode) => console.log('mode →', mode),
+      }),
+    ],
+    content: '<p>hello world</p>',
   })
-
   return <EditorContent editor={editor} />
 }
 ```
 
-## Usage (ProseMirror React example)
+## Features
 
-```tsx
-import { useState } from 'react'
-import {
-	ProseMirror,
-	ProseMirrorDoc,
-	reactKeys,
-} from '@handlewithcare/react-prosemirror'
-import { EditorState } from 'prosemirror-state'
-import { schema } from 'prosemirror-schema-basic'
-import { VimMode } from '@prose-motions/core'
+Every motion in vim's normal / visual modes the engine implements is available. A few highlights:
 
-export default function MyProseMirror () {
-    return (
-        <ProseMirror
-            defaultState={EditorState.create({
-                schema,
-                plugins: [
-                // The reactKeys plugin is required for the ProseMirror component to work!
-                reactKeys(),
-                ...VimMode.addProseMirrorPlugins()
-                ],
-            })}
-        >
-            <ProseMirrorDoc />
-        </ProseMirror>
-  );
-}
+- **Motions** `h j k l` `w e b` `0 ^ $` `gg G` `f F t T ; ,`
+- **Counts** `3w` `5j` `d3w`
+- **Operators** `d` `c` `y` `p` `P`
+- **Text objects** `iw` `aw` `i"` `ip` `ap`
+- **Visual** `v` `V` + operator (including linewise across blocks)
+- **Ex** `:w`, `:q`, `:s/foo/bar/` — dispatched to your handlers via config
+- **Search** `/foo<CR>` highlights matches (requires `@prose-motions/styles`)
+- **`.`-repeat** after any edit
+- **Per-editor isolation** — two editors on one page never share state
+
+## Configuration
+
+```ts
+VimMode.configure({
+  // Boot mode — 'insert' (default, matches v0.1.x) or 'normal'.
+  defaultMode: 'insert',
+
+  // Key remaps. Lowered to Vim.map — note these are engine-global:
+  // the last configured mapping wins across editors on the page.
+  keymaps: [
+    { lhs: 'jk', rhs: '<Esc>', mode: 'insert' },
+    { lhs: ' w', rhs: ':w<CR>', mode: 'normal' },
+  ],
+
+  // Ex commands. Handlers receive (adapter, { input, argv }).
+  // Return `false` to fall through to onUnknown.
+  ex: {
+    handlers: {
+      w: (cm, { argv }) => save(argv[0]),
+      q: () => window.close(),
+    },
+    onUnknown: (cm, { input }) => toast(`:${input} — no such command`),
+  },
+
+  // 'internal' (default) keeps yank in the engine's register bank;
+  // 'system' mirrors yanks to navigator.clipboard and emits
+  // 'clipboard-denied' on permission failure.
+  clipboard: 'internal',
+
+  // Mode callback. The value is the collapsed mode
+  // ('normal' | 'insert' | 'visual'); visual-line / visual-block
+  // are available via editor.storage.vimMode.adapter.state.vim.
+  onModeChange: (mode) => …,
+})
 ```
 
-> This snippet uses the modern "React × ProseMirror" bridge maintained by Handle with Care ([handlewithcarecollective/react-prosemirror](https://github.com/handlewithcarecollective/react-prosemirror)). It automatically handles state-tearing issues by updating the `EditorView` inside a layout effect
+## Status bar
 
-## Why Use Prose Motions ?
+```tsx
+import { VimStatusBar } from '@prose-motions/statusbar-react'
 
-Intentionally minimal and built with modern tooling, Prose Motions adds powerful Vim keybindings to your editor without the bloat - perfect for developers who value efficiency:
+<VimStatusBar editor={editor} />
+```
 
-- **TypeScript-first** – the whole codebase is written in strict TS so extending the keybinding set feels like ordinary app code, no fiddling with build steps.
-- **ProseMirror plugin architecture** – every keybinding (motions, operators, text-objects…) is ultimately a pure command that manipulates the editor state through transactions; no DOM tricks involved. See the ProseMirror reference for details ([docs](https://prosemirror.net/docs/ref/)).
-- **Tiptap v2 wrapper** – the extension registers itself as a standard `Extension` so it works out-of-the-box in Tiptap powered editors and any wrapper that exposes the underlying ProseMirror view. ([tiptap.dev](https://tiptap.dev/guide/introduction))
-- **Optimized Bundle** – Built with Bun for ESM modules with tree-shaking optimization. Tiny footprint in your application bundle.
-- **Zero runtime deps** – no CSS frameworks, no helper libs. The only peer deps are the editor engines themselves (`@tiptap/core`, `prosemirror-state`).
+Vanilla equivalent:
 
-> Thanks to ProseMirror's declarative **state → transaction → new-state** we can express complex Vim behaviour in plain TypeScript (see the [ProseMirror State guide](https://prosemirror.net/docs/guide/#state)). Want to add `w`, `yy`, or repeat counts? Just compose new commands – no native code compilation, no browser-specific hacks.
+```ts
+import { mountStatusBar } from '@prose-motions/statusbar-vanilla'
+const handle = mountStatusBar(host, editor)
+// later:  handle.destroy()
+```
 
-  ##  New to Vim?
+## Why Prose Motions
 
-  If you're new to Vim motions or were pointed here by colleagues, we recommend reading ["Why Vim Is More than Just an Editor – Vim Language, Motions, and Modes Explained"](https://www.freecodecamp.org/news/vim-language-and-motions-explained/). It's an excellent introduction to the concepts that make Vim-style editing so powerful.
+- **Real vim** — adapts a proven engine instead of reinventing operators, text-objects, and ex-commands.
+- **Decoupled** — `engine → adapter → core` is a stable dependency chain; visual styling and status UI are leaves you can swap out.
+- **Per-editor state** — no module-global footguns; two editors on one page never cross-talk.
+- **PM-shape aware** — `LineIndex` maps textblocks to vim lines; `markText` lowers to PM decorations that remap cleanly across edits.
+- **TypeScript-first** — narrow `VimAPI` interface pins the upstream engine so breaking changes surface at compile time, not at runtime.
+
+## Bundle size
+
+| Measured layer | Size (brotli) |
+| -------------- | ------------- |
+| core + adapter + engine (consumer bundle) | ~105 KB |
+| `statusbar-vanilla` | < 500 B |
+
+The vim engine itself accounts for most of the weight — an unavoidable cost of real vim semantics. `@tiptap/*` are peer deps.
 
 ## Roadmap
 
-- fix: cmd - v mod override persists in insert mode
-- Repeat counts (`5j`), more operators (`dw`, `yy`, `p`)
-- Proper line height calculation to avoid layout thrash
-- Performance micro-optimisations
-- windows / linux mode change support
-- editor sandbox
-- @prose-motions/styles package / caret transform support in normal vs insert mode
-- config layer / i.e, change caret size or color, choose if editor defaults to normal or insert mode (currently defaults to insert mode)
-- CI / automated publishing flow
-- Complete Vim key-binding coverage — implement the full command set documented in [`:help index`](https://vimhelp.org/index.txt.html)
+| Milestone | Status |
+| --------- | ------ |
+| M1 multi-editor isolation (v0.2.0) | ✅ |
+| M2 engine-driven h/j/k/l/i/Esc/b/dd (v0.3.0) | ✅ |
+| M3 full motion set + styles (v0.4.0) | ✅ |
+| M4 visual mode + markText decorations (v0.5.0) | ✅ |
+| M5 ex commands + dialog + search + status bars (v0.6.0) | ✅ |
+| M6 full options + clipboard + CI + size-limit (v0.9.0) | ✅ |
+| M7 `:help index` conformance + bare-PM pkg + 1.0 (v1.0.0) | ⏳ |
 
-## Size Challenge
-
-We're on a mission to keep this package lean and mean. Check out our size stats:
-
-| Initial Size (January 2025) | Latest Size | Change |
-|-------------------------|-------------|---------|
-| 4.52 kB | 4.52 kB | +0.0 kB |
-
-> Let's see if we can add awesome features while keeping our package fit. Every byte counts, but fun counts more!
+Full plan: `~/.claude/plans/understand-this-project-cuddly-beaver.md` (generated during design).
 
 ## Who's using Prose Motions?
 
@@ -120,5 +156,4 @@ We're on a mission to keep this package lean and mean. Check out our size stats:
 |---------|-------------|
 | [Grit AI](https://gritai.app/) | The AI Note Editor |
 
-Contributions & ideas are welcome – open an issue or PR.
-
+Contributions & ideas are welcome — open an issue or PR.

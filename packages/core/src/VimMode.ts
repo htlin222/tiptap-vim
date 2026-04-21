@@ -100,12 +100,19 @@ export interface KeyMapping {
 
 export interface VimModeOptions {
 	/**
+	 * Which mode to boot into. v0.1.7 defaulted to `'insert'`; consumers that
+	 * want modal-first editing should set `'normal'`.
+	 */
+	defaultMode?: 'normal' | 'insert'
+
+	/**
 	 * User-defined keymap overrides. Lowered to `Vim.map(lhs, rhs, ctx)` on
 	 * first editor mount. Note: `Vim.map` mutates engine-global state — the
 	 * last-configured mapping wins across editors. A per-editor keymap would
 	 * need to wait for an upstream API change.
 	 */
 	keymaps?: KeyMapping[]
+
 	/**
 	 * Custom ex commands invoked when the user runs `:name …`.
 	 */
@@ -113,6 +120,23 @@ export interface VimModeOptions {
 		handlers?: Record<string, ExHandler>
 		onUnknown?: ExHandler
 	}
+
+	/**
+	 * Clipboard bridge.
+	 * - `'internal'` (default): yank and paste operate entirely within the
+	 *   engine's register bank.
+	 * - `'system'`: every yank also writes to `navigator.clipboard`; `p`/`P`
+	 *   prefer `navigator.clipboard.readText()` when the active register is
+	 *   unnamed. Failures fall back to the internal register and emit a
+	 *   `clipboard-denied` event on the adapter.
+	 */
+	clipboard?: 'internal' | 'system'
+
+	/**
+	 * Fires on every mode transition the engine reports. The value is the
+	 * public-facing mode; visual-line / visual-block collapse to 'visual'.
+	 */
+	onModeChange?: (mode: 'normal' | 'insert' | 'visual') => void
 }
 
 // One global registry per process — ex-command handlers are routed through
@@ -162,8 +186,11 @@ export const VimModeExtension = Extension.create<VimModeOptions, { state: VimSta
 
 	addOptions() {
 		return {
+			defaultMode: 'insert',
 			keymaps: [],
 			ex: {},
+			clipboard: 'internal',
+			onModeChange: undefined,
 		}
 	},
 
@@ -249,8 +276,31 @@ export const VimModeExtension = Extension.create<VimModeOptions, { state: VimSta
 					onUnknown: options.ex?.onUnknown,
 				})
 				Vim.enterVimMode(adapter as unknown as never)
-				// v0.1.7 booted in insert mode; match that.
-				Vim.handleKey(adapter as unknown as never, 'i', 'user')
+				// Engine boots into normal; honor defaultMode.
+				if ((options.defaultMode ?? 'insert') === 'insert') {
+					Vim.handleKey(adapter as unknown as never, 'i', 'user')
+				}
+
+				// Clipboard bridge: mirror yank writes to the system
+				// clipboard when configured. Paste-side bridging requires
+				// an async fetch and is handled in the adapter (wired below).
+				if (options.clipboard === 'system') {
+					const unnamed = Vim.getRegisterController?.().unnamedRegister
+					if (unnamed) {
+						const originalSet = unnamed.setText?.bind(unnamed) as
+							((text?: string, linewise?: boolean, blockwise?: boolean) => void) | undefined
+						if (originalSet) {
+							unnamed.setText = function setText(text?: string, linewise?: boolean, blockwise?: boolean): void {
+								originalSet(text, linewise, blockwise)
+								if (typeof text !== 'string' || text.length === 0)
+									return
+								navigator.clipboard?.writeText(text).catch(() => {
+									adapter.signal('clipboard-denied', 'write')
+								})
+							}
+						}
+					}
+				}
 
 				// Keep a class on the PM root that mirrors the engine's mode
 				// so @prose-motions/styles (and user themes) can drive caret
@@ -275,6 +325,13 @@ export const VimModeExtension = Extension.create<VimModeOptions, { state: VimSta
 				}
 				applyModeClass()
 				adapter.on('vim-mode-change', applyModeClass)
+
+				if (options.onModeChange) {
+					const notify = (): void => {
+						options.onModeChange!(modeOf(adapter))
+					}
+					adapter.on('vim-mode-change', notify)
+				}
 
 				return {
 					destroy() {
