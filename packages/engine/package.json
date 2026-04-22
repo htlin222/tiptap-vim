@@ -1,9 +1,17 @@
 {
   "name": "@prose-motions/engine",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Vim semantics engine facade — will wrap @replit/codemirror-vim in M2.",
+  "version": "1.0.0",
+  "description": "Vim semantics engine — re-exports @replit/codemirror-vim under a narrow VimAPI.",
+  "author": "Stratum Labs <hq@stratumlabs.ai>",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stratum-labs/prose-motions.git",
+    "directory": "packages/engine"
+  },
   "type": "module",
   "main": "./dist/src/index.js",
   "module": "./dist/src/index.js",

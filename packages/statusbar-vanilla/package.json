@@ -1,9 +1,17 @@
 {
   "name": "@prose-motions/statusbar-vanilla",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
   "description": "Framework-free DOM status bar that mirrors prose-motions' vim mode.",
+  "author": "Stratum Labs <hq@stratumlabs.ai>",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stratum-labs/prose-motions.git",
+    "directory": "packages/statusbar-vanilla"
+  },
   "type": "module",
   "main": "./dist/src/index.js",
   "module": "./dist/src/index.js",

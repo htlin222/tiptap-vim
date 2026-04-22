@@ -1,9 +1,17 @@
 {
   "name": "@prose-motions/pm",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
   "description": "Vanilla ProseMirror plugins that wire prose-motions without Tiptap.",
+  "author": "Stratum Labs <hq@stratumlabs.ai>",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stratum-labs/prose-motions.git",
+    "directory": "packages/pm"
+  },
   "type": "module",
   "main": "./dist/src/index.js",
   "module": "./dist/src/index.js",

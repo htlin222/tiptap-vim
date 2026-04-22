@@ -17,7 +17,8 @@
     "test:list": "vitest run --reporter verbose",
     "lint": "eslint \"**/*.{ts,tsx}\"",
     "presize": "bun run build",
-    "size": "size-limit"
+    "size": "size-limit",
+    "pack:dry": "for p in engine adapter core pm styles statusbar-vanilla statusbar-react; do (cd packages/$p && npm pack --dry-run); done"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.13.2",

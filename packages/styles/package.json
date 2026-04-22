@@ -1,9 +1,17 @@
 {
   "name": "@prose-motions/styles",
-  "version": "0.2.0",
-  "private": true,
-  "description": "CSS for prose-motions — caret shapes and visual-mode styling.",
+  "version": "1.0.0",
+  "description": "CSS for prose-motions — caret, visual selection, dialog, status bar.",
+  "author": "Stratum Labs <hq@stratumlabs.ai>",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stratum-labs/prose-motions.git",
+    "directory": "packages/styles"
+  },
   "type": "module",
   "exports": {
     ".": "./dist/vim.css",

@@ -35,7 +35,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stratum-labs/prose-motions.git"
+    "url": "git+https://github.com/stratum-labs/prose-motions.git",
+    "directory": "packages/core"
   },
   "keywords": [
     "tiptap",
