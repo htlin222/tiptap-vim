@@ -70,6 +70,17 @@ export class LineIndex {
 	}
 
 	clamp(pos: Pos): Pos {
+		// CodeMirror's clipPos semantics: a line index past the last line resolves
+		// to the END of the last line (i.e. end of document), not its start. The
+		// vim engine expresses "one line past line L" as Pos(L + 1, 0) for linewise
+		// operators — so `dd` on the last line, or deleting the only line, passes
+		// Pos(lineCount, 0). Collapsing that to the last line's start (ch 0) turns
+		// those deletes into a paragraph-join or a no-op. Snap overflow to the
+		// last line's end instead.
+		if (pos.line >= this.lines.length) {
+			const last = this.lines.length - 1
+			return { line: last, ch: this.lines[last].text.length }
+		}
 		const line = this.clampLine(pos.line)
 		const ch = this.clampCh(line, pos.ch)
 		return { line, ch }
