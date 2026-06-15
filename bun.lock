@@ -37,10 +37,15 @@
       "version": "0.0.0",
       "dependencies": {
         "@prose-motions/core": "workspace:*",
+        "@prose-motions/pm": "workspace:*",
         "@prose-motions/styles": "workspace:*",
         "@tiptap/core": "^2",
         "@tiptap/pm": "^2",
         "@tiptap/starter-kit": "^2",
+        "prosemirror-model": "^1.19.0",
+        "prosemirror-schema-basic": "^1.2.0",
+        "prosemirror-state": "^1.4.0",
+        "prosemirror-view": "^1.30.0",
       },
       "devDependencies": {
         "vite": "^5.4.0",
@@ -48,7 +53,7 @@
     },
     "packages/adapter": {
       "name": "@prose-motions/adapter",
-      "version": "0.0.0",
+      "version": "1.0.0",
       "dependencies": {
         "@prose-motions/engine": "workspace:*",
         "@replit/codemirror-vim": "^6.2.0",
@@ -59,7 +64,7 @@
     },
     "packages/core": {
       "name": "@prose-motions/core",
-      "version": "0.9.0",
+      "version": "1.0.0",
       "dependencies": {
         "@prose-motions/adapter": "workspace:*",
         "@prose-motions/engine": "workspace:*",
@@ -74,14 +79,14 @@
     },
     "packages/engine": {
       "name": "@prose-motions/engine",
-      "version": "0.0.0",
+      "version": "1.0.0",
       "dependencies": {
         "@replit/codemirror-vim": "^6.2.0",
       },
     },
     "packages/pm": {
       "name": "@prose-motions/pm",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@prose-motions/adapter": "workspace:*",
         "@prose-motions/engine": "workspace:*",
@@ -94,7 +99,7 @@
     },
     "packages/statusbar-react": {
       "name": "@prose-motions/statusbar-react",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@prose-motions/statusbar-vanilla": "workspace:*",
       },
@@ -109,7 +114,7 @@
     },
     "packages/statusbar-vanilla": {
       "name": "@prose-motions/statusbar-vanilla",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@prose-motions/core": "workspace:*",
       },
@@ -119,7 +124,7 @@
     },
     "packages/styles": {
       "name": "@prose-motions/styles",
-      "version": "0.2.0",
+      "version": "1.0.0",
     },
     "packages/testing": {
       "name": "@prose-motions/testing",

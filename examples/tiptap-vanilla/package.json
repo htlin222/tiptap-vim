@@ -2,7 +2,7 @@
   "name": "@prose-motions/example-tiptap-vanilla",
   "version": "0.0.0",
   "private": true,
-  "description": "Two Tiptap editors on one page, both wired to @prose-motions/core.",
+  "description": "prose-motions demo — a Tiptap editor and a bare ProseMirror editor, both with a real block cursor.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,10 +11,15 @@
   },
   "dependencies": {
     "@prose-motions/core": "workspace:*",
+    "@prose-motions/pm": "workspace:*",
     "@prose-motions/styles": "workspace:*",
     "@tiptap/core": "^2",
     "@tiptap/pm": "^2",
-    "@tiptap/starter-kit": "^2"
+    "@tiptap/starter-kit": "^2",
+    "prosemirror-model": "^1.19.0",
+    "prosemirror-schema-basic": "^1.2.0",
+    "prosemirror-state": "^1.4.0",
+    "prosemirror-view": "^1.30.0"
   },
   "devDependencies": {
     "vite": "^5.4.0"

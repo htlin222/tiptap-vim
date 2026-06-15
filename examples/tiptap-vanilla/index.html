@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>prose-motions — Vim mode for Tiptap &amp; ProseMirror</title>
+    <meta
+      name="description"
+      content="A real Vim engine for Tiptap and ProseMirror editors: motions, operators, text-objects, registers, search, ex-commands and dot-repeat."
+    />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div class="hero__title">
+          <span class="logo">:</span>
+          <h1>prose-motions</h1>
+        </div>
+        <p class="tagline">
+          A <strong>real Vim engine</strong> for Tiptap &amp; ProseMirror —
+          motions, operators, text-objects, registers, search, ex-commands and
+          <code>.</code>-repeat, with per-editor isolation.
+        </p>
+        <p class="hint">
+          Both editors boot in <b>Normal</b> mode. Press <kbd>i</kbd> to insert,
+          <kbd>Esc</kbd> to go back. The block caret sits on the character and
+          inverts it — just like terminal Vim.
+        </p>
+      </header>
+
+      <section class="grid">
+        <div class="stack">
+          <div class="editor-card">
+            <div class="editor-head">
+              <span class="badge">Tiptap</span>
+              <span class="status" id="status-tiptap">NORMAL</span>
+            </div>
+            <div class="editor" id="editor-tiptap"></div>
+          </div>
+
+          <div class="editor-card">
+            <div class="editor-head">
+              <span class="badge badge--alt">ProseMirror</span>
+              <span class="status" id="status-pm">NORMAL</span>
+            </div>
+            <div class="editor" id="editor-pm"></div>
+          </div>
+        </div>
+
+        <aside class="cheats">
+          <h3>Cheat sheet</h3>
+          <dl>
+            <dt>Modes</dt>
+            <dd><kbd>i</kbd> insert · <kbd>a</kbd> append · <kbd>v</kbd> visual · <kbd>Esc</kbd> normal</dd>
+            <dt>Open line</dt>
+            <dd><kbd>o</kbd> below · <kbd>O</kbd> above</dd>
+            <dt>Motions</dt>
+            <dd><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd> · <kbd>w</kbd> <kbd>b</kbd> <kbd>e</kbd> · <kbd>0</kbd> <kbd>$</kbd> · <kbd>gg</kbd> <kbd>G</kbd></dd>
+            <dt>Display lines</dt>
+            <dd><kbd>gj</kbd> <kbd>gk</kbd> step wrapped rows</dd>
+            <dt>Operators</dt>
+            <dd><kbd>d</kbd> delete · <kbd>c</kbd> change · <kbd>y</kbd> yank · <kbd>p</kbd> paste</dd>
+            <dt>Line ops</dt>
+            <dd><kbd>dd</kbd> <kbd>cc</kbd> <kbd>yy</kbd> · <kbd>2dd</kbd> with a count</dd>
+            <dt>Text objects</dt>
+            <dd><kbd>diw</kbd> <kbd>ciw</kbd> <kbd>daw</kbd> <kbd>ci"</kbd></dd>
+            <dt>Search</dt>
+            <dd><kbd>/</kbd>text <kbd>n</kbd> <kbd>N</kbd> · <kbd>*</kbd></dd>
+            <dt>Ex</dt>
+            <dd><kbd>:%s/a/b/g</kbd></dd>
+            <dt>Repeat / undo</dt>
+            <dd><kbd>.</kbd> repeat · <kbd>u</kbd> undo · <kbd>Ctrl-r</kbd> redo</dd>
+          </dl>
+          <p class="install">
+            <code>npm i @prose-motions/core</code>
+          </p>
+        </aside>
+      </section>
+
+      <footer class="foot">
+        <a href="https://www.npmjs.com/package/@prose-motions/core">npm</a>
+        ·
+        <a href="https://github.com/stratum-labs/prose-motions">GitHub</a>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
