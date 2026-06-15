@@ -68,7 +68,11 @@ export function vimKeymapPlugin({ getAdapter, getMode }: VimKeymapOptions): Plug
 				if (!key)
 					return false
 
-				const handled = Vim.handleKey(getAdapter(view) as unknown as never, key, 'user')
+				const adapter = getAdapter(view)
+				// Resync the LineIndex if the doc changed outside the adapter
+				// (e.g. Insert-mode typing) since the last engine command.
+				adapter.ensureFresh()
+				const handled = Vim.handleKey(adapter as unknown as never, key, 'user')
 				if (handled) {
 					event.preventDefault()
 					return true
