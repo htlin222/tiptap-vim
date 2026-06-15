@@ -3,6 +3,8 @@ import type { Transaction } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
 import type { MarkHandle, MarkSpec } from './marksPlugin'
 import type { Pos } from './Pos'
+import { Vim } from '@prose-motions/engine'
+import { redo as pmRedo, undo as pmUndo } from '@tiptap/pm/history'
 import { TextSelection } from '@tiptap/pm/state'
 import { LineIndex } from './LineIndex'
 import { addMark } from './marksPlugin'
@@ -19,6 +21,95 @@ interface OverlayHandle {
 }
 
 type Handler = (...args: unknown[]) => void
+
+/**
+ * Re-point engine actions that upstream hard-wires to CodeMirror 6's `cm.cm6`
+ * — which a ProseMirror-backed adapter doesn't have — at adapter methods that
+ * speak ProseMirror:
+ *
+ *   - `undo` / `redo`  (`u`, `<C-r>`)      → `cm.undo` / `cm.redo`
+ *   - `newLineAndEnterInsertMode` (`o`/`O`) → `cm.openLine` + engine insert
+ *
+ * `Vim.defineAction` overwrites the global action table that `processAction`
+ * reads, so one install covers every editor; each action receives the adapter
+ * as `cm`, so per-editor dispatch stays correct. The `o`/`O` override runs as a
+ * plain function so `this` is the engine's action table — letting us delegate
+ * to the real `enterInsertMode` for repeat handling and mode bookkeeping.
+ */
+let actionOverridesInstalled = false
+function installActionOverrides(): void {
+	if (actionOverridesInstalled)
+		return
+	actionOverridesInstalled = true
+	const repeatOf = (args: { repeat?: number } | undefined): number =>
+		Math.max(1, args?.repeat ?? 1)
+	const vim = Vim as unknown as {
+		defineAction: (
+			name: string,
+			fn: (this: VimActions, cm: CMVimAdapter, args: OpenLineArgs, vimState: unknown) => void,
+		) => void
+		defineMotion: (
+			name: string,
+			fn: (this: VimMotions, cm: CMVimAdapter, head: Pos, args: MotionArgs, vimState: VimMotionState) => Pos,
+		) => void
+	}
+	vim.defineAction('undo', (cm, args) => cm.undo(repeatOf(args)))
+	vim.defineAction('redo', (cm, args) => cm.redo(repeatOf(args)))
+	vim.defineAction('newLineAndEnterInsertMode', function (cm, args, vimState) {
+		cm.openLine(!!args.after)
+		this.enterInsertMode(cm, { repeat: repeatOf(args) }, vimState)
+	})
+
+	// `gj` / `gk` move by *display* lines. Upstream's `moveByDisplayLines`
+	// routes through `findPosV`, but we keep `findPosV` logical+cheap for the
+	// `j`/`k` hot path — so we re-point the motion here at the pixel-based
+	// `moveByDisplayRows` instead. Layout cost stays confined to `gj`/`gk`.
+	vim.defineMotion('moveByDisplayLines', function (cm, head, args, vimState) {
+		// Keep the sticky horizontal pixel column across consecutive vertical
+		// motions, like upstream; otherwise re-seed it from the caret.
+		const lastWasVertical
+			= vimState.lastMotion === this.moveByDisplayLines
+				|| vimState.lastMotion === this.moveByLines
+		if (!lastWasVertical) {
+			try {
+				vimState.lastHSPos = cm.charCoords(head, 'div').left
+			}
+			catch {
+				vimState.lastHSPos = -1
+			}
+		}
+		const amount = (args.repeat ?? 1) * (args.forward ? 1 : -1)
+		const next = cm.moveByDisplayRows(head, amount, vimState.lastHSPos)
+		vimState.lastHPos = next.ch
+		return next
+	})
+}
+
+interface OpenLineArgs {
+	repeat?: number
+	/** `o` sets this true (open below); `O` leaves it falsy (open above). */
+	after?: boolean
+}
+
+interface VimActions {
+	enterInsertMode: (cm: CMVimAdapter, args: { repeat: number }, vimState: unknown) => void
+}
+
+interface MotionArgs {
+	repeat?: number
+	forward?: boolean
+}
+
+interface VimMotionState {
+	lastMotion?: unknown
+	lastHSPos?: number
+	lastHPos?: number
+}
+
+interface VimMotions {
+	moveByDisplayLines: unknown
+	moveByLines: unknown
+}
 
 interface PendingOp {
 	tr: Transaction
@@ -98,10 +189,14 @@ export class CMVimAdapter {
 	_handlers: Record<string, Handler[]> = {}
 
 	private lineIndex: LineIndex
+	/** The doc the current `lineIndex` was built from (identity guard). */
+	private indexedDoc: PMNode
 
 	constructor(view: EditorView) {
 		this.view = view
 		this.lineIndex = new LineIndex(view.state.doc)
+		this.indexedDoc = view.state.doc
+		installActionOverrides()
 	}
 
 	// ── doc & lines ────────────────────────────────────────────────────────
@@ -111,6 +206,20 @@ export class CMVimAdapter {
 
 	private refreshIndex(doc: PMNode = this.currentDoc()): void {
 		this.lineIndex = new LineIndex(doc)
+		this.indexedDoc = doc
+	}
+
+	/**
+	 * Rebuild the LineIndex only if the live doc has drifted from what it was
+	 * built against — O(1) when fresh. Motions are selection-only so they no
+	 * longer trigger a rebuild (see `withTr`/`operation`); this catches doc
+	 * changes that happen OUTSIDE the adapter (e.g. Insert-mode typing handled
+	 * by ProseMirror/Tiptap) before the next engine command reads positions.
+	 * Called from the keymap plugin ahead of every `Vim.handleKey`.
+	 */
+	ensureFresh(): void {
+		if (this.view.state.doc !== this.indexedDoc)
+			this.refreshIndex(this.view.state.doc)
 	}
 
 	getValue(): string {
@@ -252,6 +361,54 @@ export class CMVimAdapter {
 		})
 	}
 
+	// ── history ──────────────────────────────────────────────────────────────
+	// The upstream engine routes `u` / `<C-r>` straight to CodeMirror 6's
+	// history (`commands.undo(cm.cm6)`), which a ProseMirror-backed adapter has
+	// no `cm6` for — so undo used to throw and do nothing. We expose CM5-style
+	// `undo` / `redo` here and re-point the engine's actions at them (see
+	// `installHistoryActions`). Backed by `@tiptap/pm/history`, so the editor
+	// must include a history plugin (Tiptap's StarterKit does).
+	undo(repeat = 1): void {
+		for (let i = 0; i < Math.max(1, repeat); i++)
+			pmUndo(this.view.state, tr => this.view.dispatch(tr))
+		this.refreshIndex(this.view.state.doc)
+	}
+
+	redo(repeat = 1): void {
+		for (let i = 0; i < Math.max(1, repeat); i++)
+			pmRedo(this.view.state, tr => this.view.dispatch(tr))
+		this.refreshIndex(this.view.state.doc)
+	}
+
+	/**
+	 * Open a fresh empty line and leave the caret on it — the editing half of
+	 * `o` (below) / `O` (above). Upstream routes this through CM6's
+	 * `newlineAndIndent`; we split the current textblock so a new sibling
+	 * paragraph is created in the PM document (correct for any block schema).
+	 */
+	openLine(after: boolean): void {
+		// Route through withTr so this batches into the engine's open
+		// `cm.operation` instead of dispatching a competing transaction (which
+		// would leave the operation's own tr applying against a stale doc).
+		this.withTr((tr) => {
+			const $head = tr.selection.$head
+			if (after) {
+				const pos = $head.end()
+				const fromStep = tr.mapping.maps.length
+				tr.split(pos)
+				// Map `pos` through only the split step to land in the new block.
+				const newPos = tr.mapping.slice(fromStep).map(pos, 1)
+				tr.setSelection(TextSelection.near(tr.doc.resolve(newPos), 1))
+			}
+			else {
+				const pos = $head.start()
+				tr.split(pos)
+				tr.setSelection(TextSelection.near(tr.doc.resolve(pos), -1))
+			}
+			tr.scrollIntoView()
+		})
+	}
+
 	// ── focus / DOM ────────────────────────────────────────────────────────
 	focus(): void {
 		this.view.focus()
@@ -316,10 +473,10 @@ export class CMVimAdapter {
 	}
 
 	/**
-	 * Move vertically by `amount` lines. In an editor with soft-wrap this
-	 * would consult pixel coords; our PM-backed adapter models one vim line
-	 * per textblock, so logical line stepping is correct and, critically,
-	 * resilient to environments without layout (jsdom, initial mount).
+	 * Move vertically by `amount` *logical* lines (one vim line per textblock).
+	 * Cheap and layout-free — this is the hot path for `j` / `k`, which the
+	 * engine drives through `findPosV`. Display-line movement (`gj`/`gk`) is
+	 * handled separately by `moveByDisplayRows` so it never taxes `j`/`k`.
 	 */
 	findPosV(
 		start: Pos,
@@ -339,6 +496,57 @@ export class CMVimAdapter {
 		const line = this.getLine(targetLine)
 		const ch = Math.min(desiredCol, line.length)
 		return mkPos(targetLine, ch)
+	}
+
+	/**
+	 * Display-line movement via pixel coords — the engine's `moveByDisplayLines`
+	 * motion (`gj`/`gk`) is re-pointed here. Forces layout (`coordsAtPos` /
+	 * `posAtCoords`), so it is deliberately kept OFF the `j`/`k` path. When
+	 * layout is unavailable (jsdom) it falls back to one logical line so the
+	 * command still does something sensible.
+	 *
+	 * `goalColumn` is a viewport x to keep (the engine's `vim.lastHSPos`); the
+	 * engine uses `-1`/undefined as a "no goal" sentinel.
+	 */
+	moveByDisplayRows(
+		start: Pos,
+		amount: number,
+		goalColumn?: number,
+	): Pos & { hitSide?: boolean } {
+		const fromPM = this.lineIndex.toPM(start)
+		let c: { left: number, top: number, bottom: number } | null = null
+		try {
+			c = this.view.coordsAtPos(fromPM)
+		}
+		catch {
+			c = null
+		}
+		if (!c || !(c.bottom > c.top)) {
+			// No layout → degrade to a single logical line step.
+			return this.findPosV(start, amount, 'line', goalColumn)
+		}
+
+		const rowH = c.bottom - c.top
+		const left = goalColumn != null && Number.isFinite(goalColumn) && goalColumn >= 0
+			? goalColumn
+			: c.left
+		const targetMidY = c.top + amount * rowH + rowH / 2
+		let hit: { pos: number } | null = null
+		try {
+			hit = this.view.posAtCoords({ left, top: targetMidY })
+		}
+		catch {
+			hit = null
+		}
+		const edge = (): Pos & { hitSide: boolean } =>
+			amount > 0
+				? { ...mkPos(this.lastLine(), this.getLine(this.lastLine()).length), hitSide: true }
+				: { ...mkPos(0, 0), hitSide: true }
+		if (!hit)
+			return edge()
+		const next = this.lineIndex.fromPM(hit.pos)
+		// No movement → first/last display row; clamp to the document edge.
+		return posEq(next, start) ? edge() : next
 	}
 
 	scrollIntoView(_pos?: Pos, _margin?: number): void {
@@ -369,7 +577,10 @@ export class CMVimAdapter {
 				if (op.tr.docChanged || op.tr.selectionSet) {
 					this.view.dispatch(op.tr)
 				}
-				this.refreshIndex(this.view.state.doc)
+				// The LineIndex only depends on the doc — selection-only ops
+				// (every h/j/k/l motion) leave it valid, so skip the O(n) walk.
+				if (op.tr.docChanged)
+					this.refreshIndex(this.view.state.doc)
 			}
 			else if (this.curOp) {
 				this.curOp.depth--
@@ -381,7 +592,8 @@ export class CMVimAdapter {
 		if (this.curOp) {
 			mutate(this.curOp.tr)
 			this.curOp.doc = this.curOp.tr.doc
-			this.refreshIndex(this.curOp.doc)
+			if (this.curOp.tr.docChanged)
+				this.refreshIndex(this.curOp.doc)
 			return
 		}
 		const tr = this.view.state.tr
@@ -389,7 +601,9 @@ export class CMVimAdapter {
 		if (tr.docChanged || tr.selectionSet) {
 			this.view.dispatch(tr)
 		}
-		this.refreshIndex(this.view.state.doc)
+		// Selection-only changes don't affect the LineIndex; skip the rebuild.
+		if (tr.docChanged)
+			this.refreshIndex(this.view.state.doc)
 	}
 
 	// ── events ─────────────────────────────────────────────────────────────
