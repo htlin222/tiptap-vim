@@ -1,38 +1,41 @@
 {
-  "name": "@prose-motions/engine",
-  "version": "1.0.0",
-  "description": "Vim semantics engine — re-exports @replit/codemirror-vim under a narrow VimAPI.",
-  "author": "Stratum Labs <hq@stratumlabs.ai>",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/stratum-labs/prose-motions.git",
-    "directory": "packages/engine"
-  },
-  "type": "module",
-  "main": "./dist/src/index.js",
-  "module": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js",
-      "default": "./dist/src/index.js"
-    }
-  },
-  "scripts": {
-    "clean": "rm -rf dist",
-    "build:types": "tsc -p tsconfig.build.json",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@replit/*' --external '@codemirror/*'",
-    "build": "bun run clean && bun run build:types && bun run build:esm"
-  },
-  "files": [
-    "dist/**/*"
-  ],
-  "dependencies": {
-    "@replit/codemirror-vim": "^6.2.0"
-  }
+	"name": "@prose-motions/engine",
+	"version": "1.0.0",
+	"description": "Vim semantics engine — re-exports @replit/codemirror-vim under a narrow VimAPI.",
+	"author": "Stratum Labs <hq@stratumlabs.ai>",
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/stratum-labs/prose-motions.git",
+		"directory": "packages/engine"
+	},
+	"type": "module",
+	"main": "./dist/src/index.cjs",
+	"module": "./dist/src/index.js",
+	"types": "./dist/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/src/index.d.ts",
+			"import": "./dist/src/index.js",
+			"require": "./dist/src/index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build:types": "tsc -p tsconfig.build.json",
+		"build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@replit/*' --external '@codemirror/*' --sourcemap=external",
+		"build": "bun run clean && bun run build:types && bun run build:esm && bun run build:cjs",
+		"build:cjs": "bun build ./src/index.ts --outdir ./dist/src --target node --format cjs --entry-naming '[dir]/[name].cjs' --external '@replit/*' --external '@codemirror/*' --sourcemap=external"
+	},
+	"files": [
+		"dist/**/*"
+	],
+	"dependencies": {
+		"@replit/codemirror-vim": "^6.2.0"
+	},
+	"sideEffects": false
 }

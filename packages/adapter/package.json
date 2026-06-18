@@ -13,21 +13,23 @@
     "directory": "packages/adapter"
   },
   "type": "module",
-  "main": "./dist/src/index.js",
+  "main": "./dist/src/index.cjs",
   "module": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
       "import": "./dist/src/index.js",
-      "default": "./dist/src/index.js"
-    }
+      "require": "./dist/src/index.cjs"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "clean": "rm -rf dist",
     "build:types": "tsc -p tsconfig.build.json",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*'",
-    "build": "bun run clean && bun run build:types && bun run build:esm"
+    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*' --sourcemap=external",
+    "build": "bun run clean && bun run build:types && bun run build:esm && bun run build:cjs",
+    "build:cjs": "bun build ./src/index.ts --outdir ./dist/src --target node --format cjs --entry-naming '[dir]/[name].cjs' --external '@tiptap/*' --external '@prose-motions/*' --sourcemap=external"
   },
   "peerDependencies": {
     "@tiptap/pm": "^2"
@@ -38,5 +40,6 @@
   },
   "files": [
     "dist/**/*"
-  ]
+  ],
+  "sideEffects": false
 }

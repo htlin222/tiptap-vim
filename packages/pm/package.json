@@ -1,44 +1,47 @@
 {
-  "name": "@prose-motions/pm",
-  "version": "1.0.0",
-  "description": "Vanilla ProseMirror plugins that wire prose-motions without Tiptap.",
-  "author": "Stratum Labs <hq@stratumlabs.ai>",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/stratum-labs/prose-motions.git",
-    "directory": "packages/pm"
-  },
-  "type": "module",
-  "main": "./dist/src/index.js",
-  "module": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js",
-      "default": "./dist/src/index.js"
-    }
-  },
-  "scripts": {
-    "clean": "rm -rf dist",
-    "build:types": "tsc -p tsconfig.build.json",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*' --external '@replit/*' --external '@codemirror/*' --external 'prosemirror-*'",
-    "build": "bun run clean && bun run build:types && bun run build:esm"
-  },
-  "peerDependencies": {
-    "prosemirror-state": "^1",
-    "prosemirror-view": "^1",
-    "prosemirror-model": "^1"
-  },
-  "dependencies": {
-    "@prose-motions/adapter": "workspace:*",
-    "@prose-motions/engine": "workspace:*"
-  },
-  "files": [
-    "dist/**/*"
-  ]
+	"name": "@prose-motions/pm",
+	"version": "1.0.0",
+	"description": "Vanilla ProseMirror plugins that wire prose-motions without Tiptap.",
+	"author": "Stratum Labs <hq@stratumlabs.ai>",
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/stratum-labs/prose-motions.git",
+		"directory": "packages/pm"
+	},
+	"type": "module",
+	"main": "./dist/src/index.cjs",
+	"module": "./dist/src/index.js",
+	"types": "./dist/src/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/src/index.d.ts",
+			"import": "./dist/src/index.js",
+			"require": "./dist/src/index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build:types": "tsc -p tsconfig.build.json",
+		"build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*' --external '@replit/*' --external '@codemirror/*' --external 'prosemirror-*' --sourcemap=external",
+		"build": "bun run clean && bun run build:types && bun run build:esm && bun run build:cjs",
+		"build:cjs": "bun build ./src/index.ts --outdir ./dist/src --target node --format cjs --entry-naming '[dir]/[name].cjs' --external '@tiptap/*' --external '@prose-motions/*' --external '@replit/*' --external '@codemirror/*' --external 'prosemirror-*' --sourcemap=external"
+	},
+	"peerDependencies": {
+		"prosemirror-state": "^1",
+		"prosemirror-view": "^1",
+		"prosemirror-model": "^1"
+	},
+	"dependencies": {
+		"@prose-motions/adapter": "workspace:*",
+		"@prose-motions/engine": "workspace:*"
+	},
+	"files": [
+		"dist/**/*"
+	],
+	"sideEffects": false
 }

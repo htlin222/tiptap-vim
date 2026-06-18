@@ -1,28 +1,32 @@
 {
-  "name": "@prose-motions/styles",
-  "version": "1.0.0",
-  "description": "CSS for prose-motions — caret, visual selection, dialog, status bar.",
-  "author": "Stratum Labs <hq@stratumlabs.ai>",
-  "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/stratum-labs/prose-motions.git",
-    "directory": "packages/styles"
-  },
-  "type": "module",
-  "exports": {
-    ".": "./dist/vim.css",
-    "./vim.css": "./dist/vim.css"
-  },
-  "main": "./dist/vim.css",
-  "scripts": {
-    "clean": "rm -rf dist",
-    "build": "bun run clean && mkdir -p dist && cp -R src/* dist/"
-  },
-  "files": [
-    "dist/**/*"
-  ]
+	"name": "@prose-motions/styles",
+	"version": "1.0.0",
+	"description": "CSS for prose-motions — caret, visual selection, dialog, status bar.",
+	"author": "Stratum Labs <hq@stratumlabs.ai>",
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/stratum-labs/prose-motions.git",
+		"directory": "packages/styles"
+	},
+	"type": "module",
+	"exports": {
+		".": "./dist/vim.css",
+		"./vim.css": "./dist/vim.css",
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/vim.css",
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build": "bun run clean && mkdir -p dist && cp -R src/* dist/"
+	},
+	"files": [
+		"dist/**/*"
+	],
+	"sideEffects": [
+		"**/*.css"
+	]
 }

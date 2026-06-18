@@ -1,58 +1,61 @@
 {
-  "name": "@prose-motions/core",
-  "version": "1.0.0",
-  "description": "Drop-in Vim-style motions for Tiptap / ProseMirror editors",
-  "author": "Stratum Labs <hq@stratumlabs.ai>",
-  "license": "MIT",
-  "main": "./dist/src/index.js",
-  "module": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
-  "scripts": {
-    "clean": "rm -rf dist",
-    "build:types": "tsc -p tsconfig.build.json",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*' --external '@replit/*' --external '@codemirror/*'",
-    "build": "bun run clean && bun run build:types && bun run build:esm",
-    "prepublishOnly": "bun run build"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js",
-      "default": "./dist/src/index.js"
-    }
-  },
-  "type": "module",
-  "peerDependencies": {
-    "@tiptap/core": "^2",
-    "@tiptap/pm": "^2"
-  },
-  "dependencies": {
-    "@prose-motions/adapter": "workspace:*",
-    "@prose-motions/engine": "workspace:*"
-  },
-  "devDependencies": {
-    "@prose-motions/statusbar-vanilla": "workspace:*"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/stratum-labs/prose-motions.git",
-    "directory": "packages/core"
-  },
-  "keywords": [
-    "tiptap",
-    "prosemirror",
-    "vim",
-    "editor",
-    "motions"
-  ],
-  "bugs": {
-    "url": "https://github.com/stratum-labs/prose-motions/issues"
-  },
-  "homepage": "https://github.com/stratum-labs/prose-motions#readme",
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist/**/*"
-  ]
+	"name": "@prose-motions/core",
+	"version": "1.0.0",
+	"description": "Drop-in Vim-style motions for Tiptap / ProseMirror editors",
+	"author": "Stratum Labs <hq@stratumlabs.ai>",
+	"license": "MIT",
+	"main": "./dist/src/index.cjs",
+	"module": "./dist/src/index.js",
+	"types": "./dist/src/index.d.ts",
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build:types": "tsc -p tsconfig.build.json",
+		"build:esm": "bun build ./src/index.ts --outdir ./dist/src --target node --format esm --external '@tiptap/*' --external '@prose-motions/*' --external '@replit/*' --external '@codemirror/*' --sourcemap=external",
+		"build": "bun run clean && bun run build:types && bun run build:esm && bun run build:cjs",
+		"prepublishOnly": "bun run build",
+		"build:cjs": "bun build ./src/index.ts --outdir ./dist/src --target node --format cjs --entry-naming '[dir]/[name].cjs' --external '@tiptap/*' --external '@prose-motions/*' --external '@replit/*' --external '@codemirror/*' --sourcemap=external"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/src/index.d.ts",
+			"import": "./dist/src/index.js",
+			"require": "./dist/src/index.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"type": "module",
+	"peerDependencies": {
+		"@tiptap/core": "^2",
+		"@tiptap/pm": "^2"
+	},
+	"dependencies": {
+		"@prose-motions/adapter": "workspace:*",
+		"@prose-motions/engine": "workspace:*"
+	},
+	"devDependencies": {
+		"@prose-motions/statusbar-vanilla": "workspace:*"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/stratum-labs/prose-motions.git",
+		"directory": "packages/core"
+	},
+	"keywords": [
+		"tiptap",
+		"prosemirror",
+		"vim",
+		"editor",
+		"motions"
+	],
+	"bugs": {
+		"url": "https://github.com/stratum-labs/prose-motions/issues"
+	},
+	"homepage": "https://github.com/stratum-labs/prose-motions#readme",
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist/**/*"
+	],
+	"sideEffects": false
 }
